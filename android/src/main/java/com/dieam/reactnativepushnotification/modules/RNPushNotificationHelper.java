@@ -612,13 +612,24 @@ public class RNPushNotificationHelper {
         if (channelId == null) {
             channelId = NOTIFICATION_CHANNEL_ID;
         }
+        String channelName = bundle.getString("channelName");
+       
         
+        if(channelName == null || channelName == ""){
+            channelName = this.config.getChannelName();
+        }
+        
+        String channelDesc = bundle.getString("channelDesc");
+        if(channelDesc == null || channelDesc == ""){
+            channelDesc = this.config.getChannelDescription();
+        }
+
         NotificationChannel mChannel = manager.getNotificationChannel(channelId);
         
         if (mChannel == null) {
-            NotificationChannel channel = new NotificationChannel(channelId, this.config.getChannelName() != null ? this.config.getChannelName() : "rn-push-notification-channel", importance);
+            NotificationChannel channel = new NotificationChannel(channelId, channelName, importance);
 
-            channel.setDescription(this.config.getChannelDescription());
+            channel.setDescription(channelDesc);
             channel.enableLights(true);
             channel.enableVibration(true);
             channel.setImportance(importance);

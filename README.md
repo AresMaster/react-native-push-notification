@@ -263,6 +263,8 @@ PushNotification.localNotification({
     visibility: "private", // (optional) set notification visibility, default: private
     importance: "high", // (optional) set notification importance, default: high
     channelId: 'youCustomChannelId', // (optional) custom channelId 
+    channelName: "custom name",// (optional) custom name of channel (without manifest) 
+    channelDesc: "description",// (optional) custom description of channel (without manifest) 
     onlyAlertOnce: false, //(optional) alert will open only once with sound and notify, default: false
     allowWhileIdle: false, // (optional) set notification to work while on doze, default: false
 
