@@ -568,12 +568,12 @@ public class RNPushNotificationHelper {
         }
     }
 
-    private static boolean channelCreated = false;
+    //private static boolean channelCreated = false;
     private void checkOrCreateChannel(Bundle bundle, NotificationManager manager, Uri soundUri) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
             return;
-        if (channelCreated)
-            return;
+        //if (channelCreated)
+        //    return;
         if (manager == null)
             return;
 
@@ -623,16 +623,17 @@ public class RNPushNotificationHelper {
         if(channelDesc == null || channelDesc == ""){
             channelDesc = this.config.getChannelDescription();
         }
-
+        
         NotificationChannel mChannel = manager.getNotificationChannel(channelId);
         
-        if (mChannel == null) {
+        //if (mChannel == null) {
             NotificationChannel channel = new NotificationChannel(channelId, channelName, importance);
 
             channel.setDescription(channelDesc);
             channel.enableLights(true);
             channel.enableVibration(true);
             channel.setImportance(importance);
+
             if (soundUri != null) {
                 AudioAttributes audioAttributes = new AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -643,8 +644,8 @@ public class RNPushNotificationHelper {
             channel.setSound(null, null);
             }
             manager.createNotificationChannel(channel);
-        }
+        //}
        
-        channelCreated = true;
+       // channelCreated = true;
     }
 }

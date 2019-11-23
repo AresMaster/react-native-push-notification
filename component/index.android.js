@@ -112,15 +112,6 @@ NotificationsComponent.prototype.removeEventListener = function (type: string, h
 	_notifHandlers.delete(type);
 }
 
-Notifications.navigateToAndroidSettings = function () {
-	if (Platform.OS === 'android') {
-		return this.callNative('navigateToAndroidSettings', arguments);
-	} else {
-		console.warn('Attempting to call android only function ' +
-			'`navigateToAndroidSettings` on platform other than android.');
-	}
-};
-
 NotificationsComponent.prototype.registerNotificationActions = function (details: Object) {
 	RNPushNotification.registerNotificationActions(details);
 }
