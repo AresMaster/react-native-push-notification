@@ -348,4 +348,5 @@ Notifications.clearAllNotifications = function () {
 	return this.callNative('clearAllNotifications', arguments)
 }
 
+
 module.exports = Notifications;
