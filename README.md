@@ -258,6 +258,7 @@ PushNotification.localNotification({
     vibration: 300, // vibration length in milliseconds, ignored if vibrate=false, default: 1000
     tag: 'some_tag', // (optional) add tag to message
     group: "group", // (optional) add group to message
+    groupSummary: false, // optional add group summary notofocation
     ongoing: false, // (optional) set whether this is an "ongoing" notification
     priority: "high", // (optional) set notification priority, default: high
     visibility: "private", // (optional) set notification visibility, default: private

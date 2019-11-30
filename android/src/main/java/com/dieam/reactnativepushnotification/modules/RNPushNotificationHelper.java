@@ -248,13 +248,22 @@ public class RNPushNotificationHelper {
                 notification.setNumber(Integer.parseInt(numberString));
             }
 
-            int smallIconResId;
-            int largeIconResId;
+            int smallIconResId=0;
+            int largeIconResId=0;
 
-            String smallIcon = bundle.getString("smallIcon");
+            Object smallIcon = bundle.get("smallIcon");
 
             if (smallIcon != null) {
-                smallIconResId = res.getIdentifier(smallIcon, "mipmap", packageName);
+                 if (smallIcon instanceof String) {
+                    smallIconResId = res.getIdentifier((String) smallIcon, "mipmap", packageName);
+                } else if (smallIcon instanceof Bundle) {
+                    Bundle smallIconReadAbleMap = (Bundle) smallIcon;
+                    smallIconResId = res.getIdentifier(
+                            smallIconReadAbleMap.getString("iconName"),
+                            smallIconReadAbleMap.getString("iconLocation"),
+                            packageName
+                    );
+                }
             } else {
                 smallIconResId = res.getIdentifier("ic_notification", "mipmap", packageName);
             }
@@ -326,6 +335,10 @@ public class RNPushNotificationHelper {
                 notification.setOngoing(bundle.getBoolean("ongoing"));
             }
 
+            if (bundle.containsKey("groupSummary") || bundle.getBoolean("groupSummary")) {
+                notification.setGroupSummary(bundle.getBoolean("groupSummary"));
+            }
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 notification.setCategory(NotificationCompat.CATEGORY_CALL);
 
