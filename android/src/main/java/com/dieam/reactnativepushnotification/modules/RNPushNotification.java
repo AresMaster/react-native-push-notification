@@ -8,33 +8,42 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.dieam.reactnativepushnotification.helpers.ApplicationBadgeHelper;
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 
+import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 
 import android.util.Log;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 public class RNPushNotification extends ReactContextBaseJavaModule implements ActivityEventListener {
     public static final String LOG_TAG = "RNPushNotification";// all logging should use this tag
 
     private RNPushNotificationHelper mRNPushNotificationHelper;
-    private final Random mRandomNumberGenerator = new Random(System.currentTimeMillis());
+    private final SecureRandom mRandomNumberGenerator = new SecureRandom();
     private RNPushNotificationJsDelivery mJsDelivery;
 
     public RNPushNotification(ReactApplicationContext reactContext) {
@@ -49,8 +58,10 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
         // This is used to delivery callbacks to JS
         mJsDelivery = new RNPushNotificationJsDelivery(reactContext);
 
-        registerNotificationsRegistration();
+        mRNPushNotificationHelper.checkOrCreateDefaultChannel();
     }
+
+
 
     @Override
     public String getName() {
@@ -73,6 +84,8 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
         }
         return bundle;
     }
+
+    @Override
     public void onNewIntent(Intent intent) {
         Bundle bundle = this.getBundleFromIntent(intent);
         if (bundle != null) {
@@ -81,43 +94,16 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
             mJsDelivery.notifyNotification(bundle);
         }
     }
+    
+    @ReactMethod
+    public void invokeApp(ReadableMap data) {
+        Bundle bundle = null;
 
-    private void registerNotificationsRegistration() {
-        IntentFilter intentFilter = new IntentFilter(getReactApplicationContext().getPackageName() + ".RNPushNotificationRegisteredToken");
-
-        getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String token = intent.getStringExtra("token");
-                WritableMap params = Arguments.createMap();
-                params.putString("deviceToken", token);
-
-                mJsDelivery.sendEvent("remoteNotificationsRegistered", params);
-            }
-        }, intentFilter);
-    }
-
-    private void registerNotificationsReceiveNotificationActions(ReadableArray actions) {
-        IntentFilter intentFilter = new IntentFilter();
-        // Add filter for each actions.
-        for (int i = 0; i < actions.size(); i++) {
-            String action = actions.getString(i);
-            intentFilter.addAction(getReactApplicationContext().getPackageName() + "." + action);
+        if (data != null) {
+            bundle = Arguments.toBundle(data);
         }
-        getReactApplicationContext().registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Bundle bundle = intent.getBundleExtra("notification");
 
-                // Notify the action.
-                mJsDelivery.notifyNotificationAction(bundle);
-
-                // Dismiss the notification popup.
-                NotificationManager manager = (NotificationManager) context.getSystemService(context.NOTIFICATION_SERVICE);
-                int notificationID = Integer.parseInt(bundle.getString("id"));
-                manager.cancel(notificationID);
-            }
-        }, intentFilter);
+        mRNPushNotificationHelper.invokeApp(bundle);
     }
 
     @ReactMethod
@@ -159,6 +145,11 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
     @ReactMethod
     public void subscribeToTopic(String topic) {
         FirebaseMessaging.getInstance().subscribeToTopic(topic);
+    }
+    
+    @ReactMethod
+    public void unsubscribeFromTopic(String topic) {
+        FirebaseMessaging.getInstance().unsubscribeFromTopic(topic);
     }
 
     @ReactMethod
@@ -235,12 +226,103 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
     /**
      * Clear notification from the notification centre.
      */
-    public void clearLocalNotification(int notificationID) {
-        mRNPushNotificationHelper.clearNotification(notificationID);
+    public void clearLocalNotification(String tag, int notificationID) {
+        mRNPushNotificationHelper.clearNotification(tag, notificationID);
     }
 
     @ReactMethod
-    public void registerNotificationActions(ReadableArray actions) {
-        registerNotificationsReceiveNotificationActions(actions);
+    /**
+     * Clears all notifications from the notification center
+     *
+     */
+    public void removeAllDeliveredNotifications() {
+      mRNPushNotificationHelper.clearNotifications();
+    }
+
+    @ReactMethod
+    /**
+     * Returns a list of all notifications currently in the Notification Center
+     */
+    public void getDeliveredNotifications(Callback callback) {
+        callback.invoke(mRNPushNotificationHelper.getDeliveredNotifications());
+    }
+
+    @ReactMethod
+    /**
+     * Returns a list of all currently scheduled notifications
+     */
+    public void getScheduledLocalNotifications(Callback callback) {
+        callback.invoke(mRNPushNotificationHelper.getScheduledLocalNotifications());
+    }
+
+    @ReactMethod
+    /**
+     * Removes notifications from the Notification Center, whose id matches
+     * an element in the provided array
+     */
+    public void removeDeliveredNotifications(ReadableArray identifiers) {
+      mRNPushNotificationHelper.clearDeliveredNotifications(identifiers);
+    }
+
+    @ReactMethod
+    /**
+     * Unregister for all remote notifications received
+     */
+    public void abandonPermissions() {
+      new Thread(new Runnable() {
+          @Override
+          public void run() {
+              try {
+                  FirebaseInstanceId.getInstance().deleteInstanceId();
+                  Log.i(LOG_TAG, "InstanceID deleted");
+              } catch (IOException e) {
+                  Log.e(LOG_TAG, "exception", e);
+              }
+          }
+      }).start();
+    }
+
+    @ReactMethod
+    /**
+     * List all channels id
+     */
+    public void getChannels(Callback callback) {
+      WritableArray array = Arguments.fromList(mRNPushNotificationHelper.listChannels());
+      
+      if(callback != null) {
+        callback.invoke(array);
+      }
+    }
+
+    @ReactMethod
+    /**
+     * Check if channel exists with a given id
+     */
+    public void channelExists(String channel_id, Callback callback) {
+      boolean exists = mRNPushNotificationHelper.channelExists(channel_id);
+
+      if(callback != null) {
+        callback.invoke(exists);
+      }
+    }
+
+    @ReactMethod
+    /**
+     * Check if channel is blocked with a given id
+     */
+    public void channelBlocked(String channel_id, Callback callback) {
+      boolean blocked = mRNPushNotificationHelper.channelBlocked(channel_id);
+
+      if(callback != null) {
+        callback.invoke(blocked);
+      }
+    }
+
+    @ReactMethod
+    /**
+     * Delete channel with a given id
+     */
+    public void deleteChannel(String channel_id) {
+      mRNPushNotificationHelper.deleteChannel(channel_id);
     }
 }
